@@ -1,5 +1,3 @@
-// src/socket/index.js
-
 const jwt = require("jsonwebtoken");
 const Message = require("../models/Message");
 const Channel = require("../models/Channel");
@@ -10,7 +8,7 @@ require("dotenv").config();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 module.exports = function (io) {
-  const userSockets = new Map(); // userId → sockets[]
+  const userSockets = new Map(); // userId → Set(socketIds)
 
   const setPresence = async (userId, isOnline) => {
     await Presence.findOneAndUpdate(
@@ -37,25 +35,21 @@ module.exports = function (io) {
   io.on("connection", async (socket) => {
     console.log("🟢 Socket connected:", socket.id);
 
-    // === AUTH ===
+    // AUTH
     const token = socket.handshake.auth?.token;
-    if (!token) {
-      console.log("❌ No token, disconnecting socket");
-      return socket.disconnect();
-    }
+    if (!token) return socket.disconnect();
 
     let payload;
     try {
       payload = jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-      console.log("❌ Invalid token");
+    } catch {
       return socket.disconnect();
     }
 
     const userId = payload.userId;
     socket.userId = userId;
 
-    // === TRACK MULTIPLE TABS ===
+    // Track sockets per user
     if (!userSockets.has(userId)) userSockets.set(userId, new Set());
     userSockets.get(userId).add(socket.id);
 
@@ -64,7 +58,7 @@ module.exports = function (io) {
       await broadcastPresence(userId);
     }
 
-    // === JOIN CHANNEL ===
+    // JOIN CHANNEL
     socket.on("joinChannel", async ({ channelId }) => {
       const channel = await Channel.findById(channelId);
       if (!channel) return socket.emit("error", "Channel not found");
@@ -73,13 +67,13 @@ module.exports = function (io) {
       console.log(`📌 User ${userId} joined ${channelId}`);
     });
 
-    // === LEAVE CHANNEL ===
+    // LEAVE CHANNEL
     socket.on("leaveChannel", ({ channelId }) => {
       socket.leave(channelId);
       console.log(`🚪 User left channel ${channelId}`);
     });
 
-    // === SEND MESSAGE (Ultra Fast) ===
+    // SEND MESSAGE — INSTANT (fixed structure)
     socket.on("sendMessage", async ({ channelId, text }) => {
       if (!channelId || !text) return;
 
@@ -88,7 +82,7 @@ module.exports = function (io) {
         _id: Date.now(),
         channelId,
         text,
-        userId: { _id: userId },
+        user: { _id: userId },  // FIXED structure
         createdAt: new Date(),
         optimistic: true,
       };
@@ -103,11 +97,16 @@ module.exports = function (io) {
         .populate("userId", "name email")
         .lean();
 
-      // ③ Send final confirmed version
-      io.to(channelId).emit("message:update", fullMsg);
+      const finalMsg = {
+        ...fullMsg,
+        user: fullMsg.userId, // normalized
+      };
+
+      // ③ Send the final confirmed database message
+      io.to(channelId).emit("message:update", finalMsg);
     });
 
-    // === HEARTBEAT ===
+    // HEARTBEAT
     socket.on("heartbeat", () => {
       Presence.updateOne(
         { userId },
@@ -116,24 +115,21 @@ module.exports = function (io) {
       ).exec();
     });
 
-    // === DISCONNECT ===
+    // DISCONNECT
     socket.on("disconnect", async () => {
       console.log("🔴 Socket disconnected:", socket.id);
 
-      if (userSockets.has(userId)) {
-        const set = userSockets.get(userId);
-        set.delete(socket.id);
+      const set = userSockets.get(userId);
+      set.delete(socket.id);
 
-        if (set.size === 0) {
-          userSockets.delete(userId);
-
-          await setPresence(userId, false);
-          await broadcastPresence(userId);
-        } else {
-          await setPresence(userId, true);
-          await broadcastPresence(userId);
-        }
+      if (set.size === 0) {
+        userSockets.delete(userId);
+        await setPresence(userId, false);
+      } else {
+        await setPresence(userId, true);
       }
+
+      await broadcastPresence(userId);
     });
   });
 };

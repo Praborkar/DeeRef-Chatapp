@@ -9,6 +9,7 @@ const SocketContext = createContext(null);
 export function SocketProvider({ children }) {
   const { user } = useAuth();
   const socketRef = useRef(null);
+
   const [presence, setPresence] = useState([]);
   const [ready, setReady] = useState(false);
 
@@ -20,26 +21,30 @@ export function SocketProvider({ children }) {
     const token = localStorage.getItem("token");
     if (!user || !token) return;
 
+    // ⭐ FIX: Allow polling + websocket for zero message delays
     const socket = io(import.meta.env.VITE_API_URL || "http://localhost:4000", {
       auth: { token },
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
+      upgrade: true,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 8,
+      reconnectionDelay: 800,
+      pingTimeout: 60000,
+      pingInterval: 25000,
     });
 
     socketRef.current = socket;
 
-    // ⭐ Clear previous listeners BEFORE adding new ones
-    socket.off("connect");
-    socket.off("presence:update");
-    socket.off("channel:deleted");
+    // --- Remove stale listeners ---
+    socket.removeAllListeners();
 
+    // --- Init events ---
     socket.on("connect", () => {
-      console.log("Socket connected");
+      console.log("⚡ Socket connected:", socket.id);
       setReady(true);
     });
 
+    // --- Presence updated ---
     socket.on("presence:update", (data) => {
       setPresence((prev) => {
         const list = Array.isArray(prev) ? prev : [];
@@ -48,9 +53,10 @@ export function SocketProvider({ children }) {
       });
     });
 
+    // --- Channel deleted from server ---
     socket.on("channel:deleted", (deletedChannelId) => {
       queryClient.setQueryData(["channels"], (old) => {
-        if (!Array.isArray(old)) return old;
+        if (!old) return old;
         return old.filter((ch) => ch._id !== deletedChannelId);
       });
 
@@ -60,11 +66,13 @@ export function SocketProvider({ children }) {
     });
 
     return () => {
-      socket.off("connect");
-      socket.off("presence:update");
-      socket.off("channel:deleted");
+      console.log("🔌 Socket cleanup");
 
-      socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+      }
+
       socketRef.current = null;
       setReady(false);
     };

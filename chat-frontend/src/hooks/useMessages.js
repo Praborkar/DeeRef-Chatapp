@@ -4,23 +4,25 @@ import api from "../api/api";
 export function useMessages(channelId) {
   const queryClient = useQueryClient();
 
-  // Infinite message pagination
+  // 🚀 Infinite Query for pagination
   const messageQuery = useInfiniteQuery(
     ["messages", channelId],
     async ({ pageParam = 1 }) => {
       const res = await api.get(`/messages/${channelId}?page=${pageParam}`);
-      return res.data; // { messages, page, totalPages }
+      return res.data;
     },
     {
       enabled: !!channelId,
       getNextPageParam: (lastPage) => {
-        if (lastPage.page < lastPage.totalPages) return lastPage.page + 1;
+        if (lastPage.page < lastPage.totalPages) {
+          return lastPage.page + 1;
+        }
         return undefined;
       },
     }
   );
 
-  // ⭐ FIX 1: Avoid duplicates when adding messages
+  // ⭐ Add optimistic message instantly
   function addLocalMessage(message) {
     queryClient.setQueryData(["messages", channelId], (old) => {
       if (!old) {
@@ -35,50 +37,47 @@ export function useMessages(channelId) {
         };
       }
 
-      const pages = [...old.pages];
-      const lastPageIndex = pages.length - 1;
-      const lastPage = pages[lastPageIndex];
+      const pages = old.pages.map((page, index) => {
+        if (index === old.pages.length - 1) {
+          // Only add to last page
+          const exists = page.messages.some((m) => m._id === message._id);
 
-      // 🚫 Prevent duplicate optimistic messages
-      const alreadyExists = lastPage.messages.some(
-        (m) =>
-          m._id === message._id ||
-          (m.text === message.text && m.optimistic && message.optimistic)
-      );
+          if (exists) return page;
 
-      if (alreadyExists) return old;
-
-      pages[lastPageIndex] = {
-        ...lastPage,
-        messages: [...lastPage.messages, message],
-      };
+          return {
+            ...page,
+            messages: [...page.messages, message],
+          };
+        }
+        return page;
+      });
 
       return { ...old, pages };
     });
   }
 
-  // ⭐ FIX 2: Replace optimistic message, DO NOT DUPLICATE
+  // ⭐ Replace optimistic temp message with real DB message
   function updateConfirmedMessage(finalMsg) {
     queryClient.setQueryData(["messages", channelId], (old) => {
       if (!old) return old;
 
       const updatedPages = old.pages.map((page) => {
-        return {
-          ...page,
-          messages: page.messages.map((msg) => {
-            // Replace optimistic temp
-            if (msg.optimistic) {
-              return finalMsg;
-            }
-            return msg;
-          }),
-        };
+        const updatedMessages = page.messages.map((msg) => {
+          // Replace only the optimistic message with matching text
+          if (msg.optimistic && msg.text === finalMsg.text) {
+            return finalMsg;
+          }
+          return msg;
+        });
+
+        return { ...page, messages: updatedMessages };
       });
 
       return { ...old, pages: updatedPages };
     });
   }
 
+  // "Refetch" button support
   const refetchMessages = () => {
     queryClient.invalidateQueries(["messages", channelId]);
   };

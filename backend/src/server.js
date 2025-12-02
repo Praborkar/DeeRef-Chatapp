@@ -24,7 +24,7 @@ connectDB(MONGO_URI);
 const app = express();
 const server = http.createServer(app);
 
-// === CORS FIX HERE ===
+// CORS
 const allowedOrigins = [
   "http://localhost:5173",
   "https://deeref-chatapp.netlify.app",
@@ -48,7 +48,7 @@ app.use(
 
 app.use(express.json());
 
-// === Socket.IO Setup ===
+// === SOCKET.IO SETUP (FIXED) ===
 const { Server } = require("socket.io");
 
 const io = new Server(server, {
@@ -56,7 +56,10 @@ const io = new Server(server, {
     origin: allowedOrigins,
     credentials: true,
   },
-  transports: ["websocket"]
+  transports: ["polling", "websocket"],  // IMPORTANT
+  pingTimeout: 60000,                    // fixes delay
+  pingInterval: 25000,
+  upgrade: true,
 });
 
 app.use((req, res, next) => {
@@ -64,7 +67,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// === Routes ===
+// === ROUTES ===
 app.use('/auth', authRoutes);
 app.use('/channels', channelsRoutes);
 app.use('/messages', messagesRoutes);
@@ -76,6 +79,7 @@ app.get("/", (req, res) => {
 // === SOCKET HANDLER ===
 socketHandler(io);
 
+// Start server
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
