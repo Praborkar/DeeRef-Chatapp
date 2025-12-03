@@ -1,82 +1,108 @@
 import React from "react";
 import { useSocketContext } from "../context/SocketProvider";
-import defaultAvatar from "../assets/profile.png"; // <-- your local image
+import defaultAvatar from "../assets/profile.png";
 
 export default function OnlineUsersPanel() {
   const { presence } = useSocketContext();
 
-  if (!presence || presence.length === 0) {
+  const onlineUsers = Object.entries(presence)
+    .filter(([_, p]) => p?.isOnline)
+    .map(([userId, p]) => ({
+      _id: userId,
+      name: p?.name || "Unknown",
+      email: p?.email,
+      avatarUrl: p?.avatarUrl,
+    }));
+
+  if (!onlineUsers.length) {
     return (
-      <div className="text-[#8a8e93] text-sm text-center py-10 bg-[#1e1f22]">
+      <div className="text-[#8a8e93] text-xs uppercase text-center py-6">
         No users online
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 text-[#f2f3f5]">
+    <div
+      className="
+        relative 
+        h-full flex flex-col
+        w-full
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold tracking-wide text-[#b5bac1] uppercase">
-          Online — {presence.length}
+        bg-[#1e1f22]/60
+        backdrop-blur-xl
+        rounded-[28px]
+        border border-[#2b2d31]/70
+        shadow-[0_8px_30px_rgba(0,0,0,0.45)]
+        overflow-hidden
+      "
+    >
+      {/* Subtle glossy overlay */}
+      <div
+        className="
+          absolute inset-0 pointer-events-none
+          bg-gradient-to-b from-white/10 to-transparent
+          opacity-10
+        "
+      />
+
+      {/* Content */}
+      <div className="px-5 py-6 z-10 overflow-y-auto">
+
+        {/* Header */}
+        <h3 className="text-[11px] font-semibold text-[#8a8e93] uppercase tracking-wide mb-4">
+          Online — {onlineUsers.length}
         </h3>
+
+        {/* List of Online Users */}
+        <ul className="space-y-4">
+          {onlineUsers.map((user) => (
+            <li
+              key={user._id}
+              className="
+                flex items-center gap-4 px-3 py-2
+                rounded-lg cursor-pointer
+                transition
+                hover:bg-white/5
+              "
+            >
+              {/* Avatar */}
+              <div className="relative">
+                <img
+                  src={user.avatarUrl || defaultAvatar}
+                  alt={user.name}
+                  className="
+                    w-10 h-10 rounded-full object-cover
+                    border border-black/30
+                    shadow-[0_2px_5px_rgba(0,0,0,0.5)]
+                  "
+                />
+
+                {/* Status dot */}
+                <span
+                  className="
+                    absolute bottom-0 right-0
+                    w-3 h-3 rounded-full bg-green-500
+                    ring-2 ring-[#1e1f22]
+                  "
+                />
+              </div>
+
+              {/* Name + Status */}
+              <div className="leading-tight">
+                <p className="text-sm font-medium text-white">
+                  {user.name}
+                </p>
+
+                <p className="text-xs text-[#8a8e93]">
+                  Online
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+
       </div>
-
-      {/* Divider */}
-      <div className="border-t border-[#2b2d31]"></div>
-
-      {/* List */}
-      <ul className="space-y-3">
-        {presence.map((user) => (
-          <li
-            key={user.id}
-            className="
-              flex items-center gap-3
-              p-3 rounded-xl
-              bg-[#1e1f22]
-              border border-[#2b2d31]
-              shadow-[0_2px_8px_rgba(0,0,0,0.25)]
-              transition-all
-              hover:bg-[#2b2d31] hover:shadow-[0_4px_12px_rgba(0,0,0,0.35)]
-              cursor-pointer
-            "
-          >
-            {/* Avatar container with online badge */}
-            <div className="relative">
-              <img
-                src={user.avatarUrl || defaultAvatar}
-                alt="User avatar"
-                className="
-                  w-10 h-10 rounded-full object-cover
-                  border border-[#2b2d31]
-                  shadow-[0_0_6px_rgba(0,0,0,0.6)]
-                "
-              />
-
-              {/* Green online badge */}
-              <span
-                className="
-                  absolute bottom-0 right-0 
-                  w-3 h-3 rounded-full 
-                  bg-green-500 ring-2 ring-[#1e1f22]
-                "
-              ></span>
-            </div>
-
-            {/* User Details */}
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm text-[#f2f3f5] font-medium">
-                {user.name}
-              </span>
-
-              <span className="text-xs text-[#8a8e93]">
-                Online
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

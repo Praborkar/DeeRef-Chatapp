@@ -1,66 +1,117 @@
 import React from "react";
 import { FiSearch, FiPhone, FiVideo, FiMoreVertical } from "react-icons/fi";
+import { useQuery } from "react-query";
+import api from "../api/api";
+import { useSocketContext } from "../context/SocketProvider";
 
 export default function ChatHeader({ channelId }) {
+  const { presence } = useSocketContext();
+
+  const { data: channel, isLoading } = useQuery(
+    ["channel", channelId],
+    async () => {
+      const res = await api.get(`/channels/${channelId}`);
+      return res.data;
+    },
+    { enabled: !!channelId }
+  );
+
+  if (isLoading || !channel) {
+    return (
+      <div className="h-14 flex items-center px-6 bg-[#1e1f22] border-b border-[#2b2d31] text-[#8a8e93]">
+        Loading…
+      </div>
+    );
+  }
+
+  const members = channel.members || [];
+  const presenceArray = Object.entries(presence).map(([id, p]) => ({ _id: id, ...p }));
+
+  const onlineMembers = members.filter((m) =>
+    presenceArray.some((p) => p._id === m._id && p.isOnline)
+  );
+
   return (
-    <div className="px-6 py-4 border-b flex items-center justify-between 
-      bg-[#1e1f22] border-[#2b2d31]"
+    <header
+      className="
+        h-14 px-6 flex items-center justify-between
+        bg-[#1e1f22]
+        border-b border-[#2b2d31]/70
+        select-none
+      "
     >
+      {/* LEFT: Channel Info */}
+      <div className="flex flex-col justify-center leading-tight">
+        <div className="flex items-center gap-2">
+          <span className="text-white font-medium text-sm tracking-wide">
+            # {channel.name}
+          </span>
 
-      {/* LEFT: CHANNEL INFO */}
-      <div>
-        <h2 className="font-semibold text-xl flex items-center gap-2 text-[#f2f3f5]">
-          # {channelId}
-          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-        </h2>
+          {onlineMembers.length > 0 && (
+            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+          )}
+        </div>
 
-        <p className="text-sm text-[#b5bac1] mt-1 flex items-center gap-2">
-          <span>3 Members Online</span>
+        <div className="flex items-center gap-3 mt-[3px] text-xs text-[#9ca0a6]">
+          {/* Online Count */}
+          <span>
+            {onlineMembers.length} Online • {members.length} Members
+          </span>
 
-          {/* Avatar group */}
-          <div className="flex items-center -space-x-2">
-            <img
-              src="https://i.pravatar.cc/40?img=1"
-              className="w-6 h-6 rounded-full border border-[#1e1f22]"
-              alt="user"
-            />
-            <img
-              src="https://i.pravatar.cc/40?img=2"
-              className="w-6 h-6 rounded-full border border-[#1e1f22]"
-              alt="user"
-            />
-            <img
-              src="https://i.pravatar.cc/40?img=3"
-              className="w-6 h-6 rounded-full border border-[#1e1f22]"
-              alt="user"
-            />
+          {/* Divider Dot */}
+          <span className="w-1 h-1 rounded-full bg-[#3a3c40]" />
+
+          {/* Avatar Group */}
+          <div className="flex items-center -space-x-2.5">
+            {members.slice(0, 4).map((m) => (
+              <div
+                key={m._id}
+                className="
+                  w-5 h-5 rounded-full
+                  bg-[#2e3034]
+                  border border-[#1c1d1f]
+                  flex items-center justify-center
+                  text-[10px] text-[#c2c5ca]
+                  font-medium
+                "
+              >
+                {m.name?.[0]?.toUpperCase()}
+              </div>
+            ))}
+
+            {members.length > 4 && (
+              <div
+                className="
+                  w-5 h-5 rounded-full 
+                  bg-[#2e3034]
+                  border border-[#1c1d1f]
+                  flex items-center justify-center
+                  text-[10px] text-[#9ca0a6]
+                "
+              >
+                +{members.length - 4}
+              </div>
+            )}
           </div>
-        </p>
+        </div>
       </div>
 
-      {/* RIGHT: ACTION BUTTONS */}
-      <div className="flex items-center gap-5 text-[#b5bac1]">
-
-        {/* Search */}
-        <button className="hover:text-[#f2f3f5] transition">
-          <FiSearch className="w-5 h-5" />
-        </button>
-
-        {/* Audio Call */}
-        <button className="hover:text-[#f2f3f5] transition">
-          <FiPhone className="w-5 h-5" />
-        </button>
-
-        {/* Video Call */}
-        <button className="hover:text-[#f2f3f5] transition">
-          <FiVideo className="w-6 h-6" />
-        </button>
-
-        {/* More Options */}
-        <button className="hover:text-[#f2f3f5] transition">
-          <FiMoreVertical className="w-5 h-5" />
-        </button>
+      {/* RIGHT: Actions */}
+      <div className="flex items-center gap-4 text-[#9ca0a6]">
+        {[FiSearch, FiPhone, FiVideo, FiMoreVertical].map((Icon, i) => (
+          <button
+            key={i}
+            className="
+              p-1.5 rounded-md
+              hover:bg-[#2a2c30] 
+              hover:text-white
+              transition-colors
+            "
+          >
+            <Icon className="w-5 h-5" />
+          </button>
+        ))}
       </div>
-    </div>
+    </header>
   );
 }

@@ -3,12 +3,11 @@ const router = express.Router();
 const Channel = require('../models/Channel');
 const auth = require('../middleware/auth');
 
-// If you want to delete messages, Message model must exist:
 let Message;
 try {
-  Message = require('../models/Message'); 
+  Message = require('../models/Message');
 } catch (e) {
-  Message = null; // fallback
+  Message = null;
 }
 
 /*
@@ -28,31 +27,51 @@ router.get('/', auth, async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| POST /channels - create a new channel
+| ⭐ GET /channels/:id - get single channel (REQUIRED for ChatHeader)
+|--------------------------------------------------------------------------
+*/
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const channel = await Channel.findById(req.params.id)
+      .populate('members', 'name email');
+
+    if (!channel) {
+      return res.status(404).json({ message: 'Channel not found' });
+    }
+
+    res.json(channel);
+  } catch (err) {
+    console.error("Get Channel Error:", err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/*
+|--------------------------------------------------------------------------
+| POST /channels - Create Channel
 |--------------------------------------------------------------------------
 */
 router.post('/', auth, async (req, res) => {
   try {
-    console.log("----- CHANNEL CREATE DEBUG -----");
-    console.log("Headers:", req.headers);
-    console.log("Decoded user:", req.user);
-    console.log("Request body:", req.body);
-
     const { name } = req.body;
     if (!name) return res.status(400).json({ message: 'Channel name required' });
 
     let exists = await Channel.findOne({ name });
-    if (exists) return res.status(400).json({ message: 'Channel with this name already exists' });
+    if (exists) return res.status(400).json({ message: 'Channel already exists' });
 
     const channel = new Channel({
       name,
-      members: [req.user.userId]
+      members: [req.user.userId],
     });
 
     await channel.save();
 
     const populated = await Channel.findById(channel._id)
       .populate('members', 'name email');
+
+    if (req.io) {
+      req.io.emit("channel:created", populated);
+    }
 
     res.status(201).json(populated);
   } catch (err) {
@@ -63,7 +82,7 @@ router.post('/', auth, async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| POST /channels/:id/join - join a channel
+| POST /channels/:id/join
 |--------------------------------------------------------------------------
 */
 router.post('/:id/join', auth, async (req, res) => {
@@ -81,6 +100,10 @@ router.post('/:id/join', auth, async (req, res) => {
     const populated = await Channel.findById(channel._id)
       .populate('members', 'name email');
 
+    if (req.io) {
+      req.io.emit("channel:updated", populated);
+    }
+
     res.json(populated);
   } catch (err) {
     console.error(err);
@@ -90,7 +113,7 @@ router.post('/:id/join', auth, async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| POST /channels/:id/leave - leave a channel
+| POST /channels/:id/leave
 |--------------------------------------------------------------------------
 */
 router.post('/:id/leave', auth, async (req, res) => {
@@ -101,12 +124,17 @@ router.post('/:id/leave', auth, async (req, res) => {
     const userId = req.user.userId;
 
     channel.members = channel.members.filter(
-      m => m.toString() !== userId
+      (m) => m.toString() !== userId
     );
+
     await channel.save();
 
     const populated = await Channel.findById(channel._id)
       .populate('members', 'name email');
+
+    if (req.io) {
+      req.io.emit("channel:updated", populated);
+    }
 
     res.json(populated);
   } catch (err) {
@@ -117,7 +145,7 @@ router.post('/:id/leave', auth, async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| DELETE /channels/:id - delete a channel
+| DELETE /channels/:id
 |--------------------------------------------------------------------------
 */
 router.delete('/:id', auth, async (req, res) => {
@@ -129,15 +157,12 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Channel not found' });
     }
 
-    // Optional: delete all messages inside this channel
     if (Message) {
       await Message.deleteMany({ channelId });
     }
 
-    // Delete channel itself
     await Channel.findByIdAndDelete(channelId);
 
-    // Optional: send Socket.IO broadcast
     if (req.io) {
       req.io.emit('channel:deleted', channelId);
     }

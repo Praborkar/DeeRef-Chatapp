@@ -4,58 +4,96 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { useAuth } from "../hooks/useAuth";
 
+// IMPORT BACKGROUND
+import bgImage from "../assets/background.png";
+
 export default function SignupPage() {
   const { register, handleSubmit } = useForm();
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login } = useAuth(); // If signup returns token
 
   async function onSubmit(values) {
     try {
       const { data } = await api.post("/auth/signup", values);
-      login(data.token, data.user);
-      navigate("/app");
+
+      // If your backend logs in user after signup
+      if (data.token && data.user) {
+        login(data.token, data.user);
+        navigate("/app");
+      } else {
+        navigate("/login");
+      }
+
     } catch (err) {
       alert(err?.response?.data?.message || "Signup failed");
     }
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="w-full max-w-md bg-white p-8 rounded shadow">
+    <div
+      className="h-screen w-screen bg-cover bg-center flex justify-center items-center px-4"
+      style={{
+        backgroundImage: `url(${bgImage})`,
+      }}
+    >
+      <div className="bg-[#313338] p-10 rounded-lg shadow-2xl w-full max-w-md">
 
-        <h2 className="text-2xl font-semibold mb-4">Create an Account</h2>
+        <h2 className="text-3xl font-bold text-white text-center mb-2">
+          Create an account
+        </h2>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          
-          <input
-            {...register("name", { required: true })}
-            type="text"
-            placeholder="Full Name"
-            className="w-full border p-2 rounded"
-          />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 mt-6">
 
-          <input
-            {...register("email", { required: true })}
-            type="email"
-            placeholder="Email"
-            className="w-full border p-2 rounded"
-          />
+          {/* Name */}
+          <div>
+            <label className="text-xs text-gray-400 font-semibold">USER NAME</label>
+            <input
+              {...register("name", { required: true })}
+              type="text"
+              placeholder="user"
+              className="w-full mt-1 bg-[#1e1f22] border border-[#3c3f45]
+              text-gray-200 p-3 rounded focus:outline-none focus:ring-2
+              focus:ring-indigo-500"
+            />
+          </div>
 
-          <input
-            {...register("password", { required: true })}
-            type="password"
-            placeholder="Password"
-            className="w-full border p-2 rounded"
-          />
+          {/* Email */}
+          <div>
+            <label className="text-xs text-gray-400 font-semibold">EMAIL</label>
+            <input
+              {...register("email", { required: true })}
+              type="email"
+              placeholder="Email"
+              className="w-full mt-1 bg-[#1e1f22] border border-[#3c3f45]
+              text-gray-200 p-3 rounded focus:outline-none focus:ring-2
+              focus:ring-indigo-500"
+            />
+          </div>
 
-          <button className="w-full bg-green-600 text-white py-2 rounded">
-            Sign Up
+          {/* Password */}
+          <div>
+            <label className="text-xs text-gray-400 font-semibold">PASSWORD</label>
+            <input
+              {...register("password", { required: true })}
+              type="password"
+              placeholder="Password"
+              className="w-full mt-1 bg-[#1e1f22] border border-[#3c3f45]
+              text-gray-200 p-3 rounded focus:outline-none focus:ring-2
+              focus:ring-indigo-500"
+            />
+          </div>
+
+          <button
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white
+            font-semibold rounded transition"
+          >
+            Continue
           </button>
         </form>
 
-        <p className="mt-4 text-sm text-gray-600">
+        <p className="mt-4 text-sm text-gray-400 text-center">
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-600 underline">
+          <Link to="/login" className="text-indigo-400 hover:underline">
             Login
           </Link>
         </p>

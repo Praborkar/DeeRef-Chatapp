@@ -1,11 +1,15 @@
 module.exports = {
-  darkMode: "class",   // ⭐ REQUIRED for dark theme
+  darkMode: "class",
   content: [
     "./index.html",
     "./src/**/*.{js,jsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        space: ["Space Grotesk", "sans-serif"],  // ⭐ Add custom font here
+      },
+    },
   },
   plugins: [],
 };

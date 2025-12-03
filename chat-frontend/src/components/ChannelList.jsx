@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "react-query";
 import api from "../api/api";
 import { Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import channelIcon from "../assets/channel.png";
 
 export default function ChannelList({ search = "" }) {
   const { data, isLoading } = useChannels();
@@ -15,144 +16,121 @@ export default function ChannelList({ search = "" }) {
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/channels/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries(["channels"]);
-      toast.success("Channel deleted successfully", { style: { color: "#fff" } });
+      toast.success("Channel deleted");
+      queryClient.invalidateQueries("channels");
     },
-    onError: () => {
-      toast.error("Failed to delete channel");
-    },
+    onError: () => toast.error("Failed to delete"),
   });
 
   if (isLoading) {
-    return <div className="text-[#8a8e93] text-sm p-2">Loading channels...</div>;
+    return <div className="text-[#8a8e93] text-sm px-2">Loading…</div>;
   }
 
   const channels = Array.isArray(data) ? data : [];
-  const filtered = channels.filter((ch) =>
-    ch.name.toLowerCase().includes(search.toLowerCase())
-  );
+
+  const filtered = channels
+    .filter((ch) => ch.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   if (!filtered.length) {
-    return <div className="text-[#8a8e93] text-sm p-2">No channels found.</div>;
+    return <div className="text-[#8a8e93] text-sm px-2">No channels</div>;
   }
 
   return (
     <>
-      <ul className="space-y-1">
+      <ul className="space-y-1.5">
         {filtered.map((channel) => {
           const isActive = location.pathname.includes(channel._id);
 
           return (
             <li key={channel._id} className="relative group">
-
-              {/* LEFT ACTIVE BAR — Discord Sidebar Style */}
+              {/* ACTIVE BAR — subtle + minimal */}
               {isActive && (
-                <div className="
-                  absolute left-0 top-1/2 -translate-y-1/2 
-                  w-[4px] h-6 
-                  bg-[#5865f2] rounded-r-xl
-                " />
+                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#5865f2] rounded-r-md" />
               )}
 
-              {/* CHANNEL ROW */}
               <Link
                 to={`/app/channels/${channel._id}`}
                 className={`
-                  flex items-center gap-3 px-4 py-2.5 rounded-xl 
-                  text-sm transition-all duration-200 select-none relative
+                  flex items-center gap-3
+                  px-3 py-2 rounded-lg text-sm
+                  transition-all duration-150 select-none
 
-                  ${isActive
-                    ? "bg-[#5865f2]/20 text-[#f2f3f5] border border-[#5865f2]/30 shadow-inner"
-                    : "text-[#b5bac1] hover:bg-[#2f3136] hover:text-[#f2f3f5]"
+                  ${
+                    isActive
+                      ? "bg-[#35363b] text-white shadow-sm"
+                      : "text-[#b5bac1] hover:bg-[#2d2f34] hover:text-white"
                   }
                 `}
               >
                 {/* ICON */}
-                <span
+                <div
                   className={`
-                    text-lg transition-colors
-                    ${isActive ? "text-[#5865f2]" : "text-[#8a8e93]"}
+                    w-7 h-7 flex items-center justify-center rounded-md
+                    border transition
+
+                    ${
+                      isActive
+                        ? "bg-[#1e1f22] border-[#2b2d31]"
+                        : "bg-[#2b2d31] border-[#3c3f41] group-hover:border-[#4a4d52]"
+                    }
                   `}
                 >
-                  {channel.icon || "💬"}
-                </span>
+                  <img src={channelIcon} className="w-4 h-4 opacity-80" />
+                </div>
 
-                {/* NAME */}
-                <span className="flex-1 truncate font-medium">
-                  {channel.name}
-                </span>
+                {/* CHANNEL NAME */}
+                <span className="flex-1 truncate font-medium">#{channel.name}</span>
 
                 {/* UNREAD DOT */}
                 {!isActive && channel.unread > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-[#5865f2]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[#5865f2]" />
                 )}
               </Link>
 
-              {/* DELETE BUTTON */}
+              {/* DELETE BUTTON — clean + minimal */}
               <button
                 onClick={(e) => {
                   e.preventDefault();
-                  e.stopPropagation();
                   setConfirmDelete(channel);
                 }}
                 className="
                   absolute right-3 top-1/2 -translate-y-1/2
                   text-[#8a8e93] hover:text-red-500
-                  opacity-0 translate-x-3 
-                  group-hover:opacity-100 group-hover:translate-x-0
-                  transition-all duration-300 ease-out
-                  p-1 rounded
+                  opacity-0 group-hover:opacity-100
+                  transition duration-150
                 "
               >
-                <Trash2 size={18} strokeWidth={2} />
+                <Trash2 size={16} />
               </button>
             </li>
           );
         })}
       </ul>
 
-      {/* DELETE CONFIRMATION MODAL — Discord Dark */}
+      {/* DELETE CONFIRM MODAL */}
       {confirmDelete && (
-        <div className="
-          fixed inset-0 z-50 
-          bg-black/60 backdrop-blur-md 
-          flex items-center justify-center
-        ">
-          <div className="
-            bg-[#2b2d31] border border-[#3c3f41] 
-            rounded-xl shadow-2xl 
-            p-6 w-80 text-[#f2f3f5]
-          ">
-            <h2 className="text-lg font-semibold">Delete Channel</h2>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-[#2a2b2f] border border-[#3a3c42] rounded-xl p-6 w-80 shadow-lg">
+            <h2 className="text-lg font-semibold text-white">Delete Channel</h2>
 
             <p className="text-[#b5bac1] text-sm mt-2">
-              Are you sure you want to delete{" "}
-              <span className="font-medium text-white">
-                {confirmDelete.name}
-              </span>
-              ? This action cannot be undone.
+              Delete <span className="text-white">#{confirmDelete.name}</span>?
             </p>
 
-            <div className="flex justify-end gap-3 mt-5">
+            <div className="flex justify-end mt-5 gap-3">
               <button
-                className="
-                  px-4 py-1 text-[#b5bac1] 
-                  hover:bg-[#3a3c42] transition rounded
-                "
                 onClick={() => setConfirmDelete(null)}
+                className="px-4 py-1 rounded bg-[#333438] text-[#ccc] hover:bg-[#3c3e42]"
               >
                 Cancel
               </button>
-
               <button
-                className="
-                  px-4 py-1 bg-red-500 text-white rounded 
-                  hover:bg-red-600 transition
-                "
                 onClick={() => {
                   deleteMutation.mutate(confirmDelete._id);
                   setConfirmDelete(null);
                 }}
+                className="px-4 py-1 rounded bg-red-500 text-white hover:bg-red-600"
               >
                 Delete
               </button>

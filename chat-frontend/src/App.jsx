@@ -4,24 +4,67 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import AppLayout from './layout/AppLayout'
 import { useAuth } from './hooks/useAuth'
-import { Toaster } from "react-hot-toast"   // ⭐ Toast component added
+import { Toaster } from "react-hot-toast"
 
 export default function App() {
   const { user, loading } = useAuth()
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center text-lg">
+      <div className="h-screen flex items-center justify-center text-lg font-space">
         Loading...
       </div>
     )
   }
 
   return (
-    <>
-      {/* ⭐ Global Toast Provider */}
-      <Toaster position="top-right" reverseOrder={false} />
+    <div className="font-space">
 
+      {/* ⭐ GLOBAL DARK THEMED TOASTER */}
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+
+          // Default Toast Style
+          style: {
+            background: "#2b2d31",
+            color: "#f2f3f5",
+            border: "1px solid #3c3f41",
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: "14px",
+          },
+
+          // Success Toast
+          success: {
+            iconTheme: {
+              primary: "#3ba55d",
+              secondary: "#f2f3f5",
+            },
+            style: {
+              background: "#1f2a21",
+              border: "1px solid #3f6140",
+              color: "#d4ffd9",
+            },
+          },
+
+          // Error Toast
+          error: {
+            iconTheme: {
+              primary: "#ed4245",
+              secondary: "#f2f3f5",
+            },
+            style: {
+              background: "#2f1d1d",
+              border: "1px solid #5c2b2b",
+              color: "#ffd6d6",
+            },
+          },
+        }}
+      />
+
+      {/* ROUTES */}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
@@ -38,6 +81,6 @@ export default function App() {
 
         <Route path="*" element={<div className="p-4">404 Not Found</div>} />
       </Routes>
-    </>
+    </div>
   )
 }
