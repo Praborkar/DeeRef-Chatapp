@@ -1,5 +1,5 @@
 # 🚀 Real-Time Team Chat Application  
-### **Discord Full-Stack Chat App (React + Node.js + Socket.IO + MongoDB)**
+### **Full-Stack Chat App (React + Node.js + Socket.IO + MongoDB)**
 
 A complete real-time chat application featuring authentication, channels, real-time messaging, online presence, and message pagination.  
 Frontend built with **React, Vite, Tailwind, React Query, Socket.IO client**.  
